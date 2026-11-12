@@ -75,6 +75,10 @@ app.get('/api/posts', (req, res) => {
   const search = (req.query.search || '').trim().toLowerCase();
   const sortKey = req.query.sort || 'latest';
 
+  // 정렬 키 화이트리스트 적용 (상속 속성 프로토타입 오염 방지 및 잘못된 값 latest 처리)
+  const rawSort = req.query.sort;
+  const sortKey = (rawSort && Object.hasOwn(SORT_WHITELIST, rawSort)) ? rawSort : 'latest';
+
   // 1) 검색 필터링 (WHERE title LIKE '%search%')
   let filtered = POSTS.filter(p => {
     if (!search) return true;
@@ -120,10 +124,21 @@ app.get('/api/posts/cursor', (req, res) => {
   const rawCursor = parseInt(req.query.cursor, 10);
   const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 10), 50);
 
-  // 커서가 있으면 해당 id보다 작은 항목들만 탐색 (WHERE id < ? ORDER BY id DESC)
-  let candidate = POSTS;
+  // 커서 쪽에도 동일하게 정렬 화이트리스트 및 프로토타입 오염 방지 적용
+  const rawSort = req.query.sort;
+  const sortKey = (rawSort && Object.hasOwn(SORT_WHITELIST, rawSort)) ? rawSort : 'latest';
+
+  // 정렬 기준에 따른 사전 정렬 및 커서 탐색
+  const sortComparator = SORT_WHITELIST[sortKey] || SORT_WHITELIST.latest;
+  let sortedPosts = [...POSTS].sort(sortComparator);
+  
+let candidate = sortedPosts;
   if (!isNaN(rawCursor) && rawCursor > 0) {
-    candidate = POSTS.filter(p => p.id < rawCursor);
+    if (sortKey === 'oldest') {
+      candidate = sortedPosts.filter(p => p.id > rawCursor);
+    } else {
+      candidate = sortedPosts.filter(p => p.id < rawCursor);
+    }
   }
 
   // limit + 1개를 조회하여 다음 데이터 존재 여부(hasNext) 판단 (COUNT(*) 제거)
