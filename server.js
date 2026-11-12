@@ -73,14 +73,15 @@ app.get('/api/posts', (req, res) => {
   const page = (!isNaN(rawPage) && rawPage > 0) ? rawPage : 1;
   const limit = (!isNaN(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, 100) : 10;
   const search = (req.query.search || '').trim().toLowerCase();
-  const sortKey = req.query.sort || 'latest';
+
 
   // 정렬 키 화이트리스트 적용 (상속 속성 프로토타입 오염 방지 및 잘못된 값 latest 처리)
+  // 기존의 const sortKey = req.query.sort || 'latest'; 제거하고 대체함.
   const rawSort = req.query.sort;
   const sortKey = (rawSort && Object.hasOwn(SORT_WHITELIST, rawSort)) ? rawSort : 'latest';
 
   // 1) 검색 필터링 (WHERE title LIKE '%search%')
-  let filtered = POSTS.filter(p => {
+let filtered = POSTS.filter(p => {
     if (!search) return true;
     return p.title.toLowerCase().includes(search) || p.content.toLowerCase().includes(search);
   });
